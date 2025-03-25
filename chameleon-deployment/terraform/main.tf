@@ -11,7 +11,7 @@ resource "openstack_networking_network_v2" "network" {
 resource "openstack_networking_subnet_v2" "subnet" {
   name            = "${var.name_prefix}_subnet"
   cidr            = "192.168.0.0/16"
-  dns_nameservers = ["129.114.97.1", "129.114.97.2"]
+  dns_nameservers = ["8.8.8.8", "8.8.4.4"]
   network_id      = openstack_networking_network_v2.network.id
 }
 
@@ -134,6 +134,6 @@ resource "local_file" "ansible_group_vars_all_file" {
 
 resource "local_sensitive_file" "private_key_file" {
   content         = openstack_compute_keypair_v2.keypair.private_key
-  filename        = "${var.path_to_key}/tf_key"
+  filename        = "${var.path_to_key}/brick-bench-key"
   file_permission = "0600"
 }
