@@ -1,6 +1,8 @@
 .ansible.log
 .terraform
 .terraform.tfstate
+all.yaml
+hosts
 *openrc*
 terraform.tfstate*
 terraform.tfvars
