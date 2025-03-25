@@ -1,0 +1,6 @@
+.ansible.log
+.terraform
+.terraform.tfstate
+*openrc*
+terraform.tfstate*
+terraform.tfvars
