@@ -1,0 +1,78 @@
+---
+- name: Setup nvidia-container-toolkit-base
+  hosts: worker
+  tasks:
+    - name: Install nvidia-container-toolkit-base
+      ansible.builtin.apt:
+        name: nvidia-container-toolkit-base
+        state: present
+
+    - name: Generate CDI
+      command: nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yamlS
+  become: true
+
+- name: Setup gpu-operator
+  hosts: controller
+  tasks:
+    - name: Add helm repository
+      ansible.builtin.deb822_repository:
+        name: helm
+        signed_by: https://baltocdn.com/helm/signing.asc
+        suites: all
+        components: main
+        uris: https://baltocdn.com/helm/stable/debian/
+        state: present
+        enabled: true
+      become: true
+
+    - name: Install helm
+      ansible.builtin.apt:
+        name: helm
+        state: present
+        update_cache: true
+      become: true
+
+    - name: Add helm repository
+      kubernetes.core.helm_repository:
+        name: nvidia
+        repo_url: https://helm.ngc.nvidia.com/nvidia
+
+    - name: Install gpu-operator
+      kubernetes.core.helm:
+        name: gpu-operator
+        chart_ref: nvidia/gpu-operator
+        release_namespace: gpu-operator
+        create_namespace: true
+        update_repo_cache: true
+        wait: true
+        values:
+          driver:
+            enabled: false
+          toolkit:
+            enabled: false
+      vars:
+        kubernetes_venv_interpreter: "{{ home }}/.virtualenvs/kubernetes/bin/python3"
+  tags: gpu
+
+- name: Deploy benchmark
+  hosts: controller
+  vars:
+    kubernetes_venv_interpreter: "{{ home }}/.virtualenvs/kubernetes/bin/python3"
+  tasks:
+    - name: Create brick-bench namespace
+      kubernetes.core.k8s:
+        name: brick-bench
+        kind: Namespace
+        state: present
+      vars:
+        ansible_python_interpreter: "{{ kubernetes_venv_interpreter }}"
+
+    - name: Apply image gen manifests
+      kubernetes.core.k8s:
+        definition: "{{ lookup('file', 'kubernetes-manifests/image-gen.yaml') | from_yaml_all }}"
+        namespace: brick-bench
+        state: present
+        force: true
+      vars:
+        ansible_python_interpreter: "{{ kubernetes_venv_interpreter }}"
+      tags: mani

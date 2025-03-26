@@ -1,0 +1,13 @@
+---
+roles:
+  - name: githubixx.containerd
+    src: https://github.com/githubixx/ansible-role-containerd.git
+    version: 0.13.1+1.7.20
+
+  - name: githubixx.runc
+    src: https://github.com/githubixx/ansible-role-runc.git
+    version: 0.5.3+1.1.13
+
+    collections:
+      name: kubernetes.core
+      version: 5.0.0

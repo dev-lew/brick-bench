@@ -1,0 +1,142 @@
+---
+- name: Install runc
+  hosts: all
+  roles:
+    - githubixx.runc
+  become: true
+
+- name: Install containerd
+  hosts: all
+  roles:
+    - githubixx.containerd
+  become: true
+
+- name: Prepare hosts
+  hosts: all
+  tasks:
+    - name: Fix tmp permissions (root owns tmp by default)
+      ansible.builtin.file:
+        path: /tmp
+        mode: "1777"
+
+    - name: Update apt respositories
+      ansible.builtin.apt:
+        update-cache: true
+
+    - name: Install pip
+      ansible.builtin.apt:
+        name: python3-pip
+        state: present
+
+    - name: Create .virtualenvs folder
+      ansible.builtin.file:
+        path: "{{ home }}/.virtualenvs"
+        state: directory
+        owner: cc
+        mode: 0755
+
+    # All subsequent ansible.core.k8s invocations will use
+    # this virtualenv. The existing python3-kubernetes Debian
+    # package is too old, so we use a venv to adhere to PEP 668
+    # to not break system packages.
+    - name: Install kubernetes python bindings
+      ansible.builtin.pip:
+        name: kubernetes
+        state: present
+        virtualenv: "{{ home }}/.virtualenvs/kubernetes"
+        virtualenv_command: python3 -m venv
+  become: true
+
+- name: Install Kubernetes
+  hosts: all
+  tasks:
+    - name: Install prerequisites
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gpg
+
+    - name: Add repository
+      ansible.builtin.deb822_repository:
+        name: kubernetes
+        signed_by: "https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key"
+        suites: [/]
+        types: [deb]
+        uris: "https://pkgs.k8s.io/core:/stable:/v1.31/deb/"
+        state: present
+        enabled: true
+
+    - name: Install packages
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: true
+      loop:
+        - kubeadm
+        - kubectl
+        - kubelet
+
+    - name: Disable firewalld
+      ansible.builtin.systemd_service:
+        name: firewalld
+        state: stopped
+
+    - name: "Set ip_forward"
+      ansible.builtin.sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+
+    - name: "Turn off swap"
+      ansible.builtin.command: swapoff -a
+  become: true
+
+- name: Configure controller node
+  hosts: controller
+  vars:
+    kubernetes_venv_interpreter: "{{ home }}/.virtualenvs/kubernetes/bin/python3"
+  tasks:
+    - name: Initialization
+      ansible.builtin.command: kubeadm init --pod-network-cidr=192.168.0.0/16
+      become: true
+
+    - name: Retrieve join command
+      ansible.builtin.command: kubeadm token create --print-join-command
+      register: output
+      become: true
+
+    - name: Persist output
+      ansible.builtin.set_fact:
+        kubeadm_join_command: "{{ output.stdout_lines[0] }}"
+
+    - name: Set up kubectl for the current user
+      ansible.builtin.shell: "{{ item }}"
+      loop:
+        - "mkdir -p {{ home }}/.kube"
+        - "cp /etc/kubernetes/admin.conf {{ home }}/.kube/config"
+        - "chown {{ ansible_user }}:$(id {{ ansible_user }} -g) {{ home }}/.kube/config"
+      become: true
+
+    - name: Install Tigera operator
+      kubernetes.core.k8s:
+        src: https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/tigera-operator.yaml
+        state: present
+      vars:
+        ansible_python_interpreter: "{{ kubernetes_venv_interpreter }}"
+
+    - name: Install Calico network plugin
+      kubernetes.core.k8s:
+        src: https://raw.githubusercontent.com/projectcalico/calico/v3.28.1/manifests/custom-resources.yaml
+        state: present
+      vars:
+        ansible_python_interpreter: "{{ kubernetes_venv_interpreter }}"
+
+- name: Configure worker node
+  hosts: worker
+  tasks:
+    - name: Join node to cluster
+      command: "{{ hostvars[groups['controller'][0]]['kubeadm_join_command'] }}"
+  become: true

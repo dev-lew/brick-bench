@@ -1,0 +1,37 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stable-diffusion-comfy-ui
+  labels:
+    app: stable-diffusion-comfy-ui
+  namespace: brick-bench
+spec:
+  selector:
+    app: stable-diffusion-comfy-ui
+  ports:
+    - port: 80
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stable-diffusion-comfy-ui
+  labels:
+    app: stable-diffusion-comfy-ui
+  namespace: brick-bench
+spec:
+  selector:
+    matchLabels:
+      app: stable-diffusion-comfy-ui
+  template:
+    metadata:
+      labels:
+        app: stable-diffusion-comfy-ui
+    spec:
+      containers:
+        - name: image-gen
+          image: devlew/comfy-ui:v1.0.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
