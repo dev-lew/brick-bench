@@ -10,6 +10,10 @@
     - name: Generate CDI
       ansible.builtin.command: nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
 
+    # The nvidia runtime class is required for the GPU operator, so we configure that
+    # along with the CDI, which provides the nvidia-cdi runtime class. All GPU workload pods
+    # will specify the nvidia-cdi runtime class in their manifests. All other pods should
+    # be using containerd by default
     - name: Configure nvidia-container-runtime
       ansible.builtin.command: nvidia-ctk runtime configure --runtime=containerd
 
@@ -60,9 +64,48 @@
             enabled: false
           toolkit:
             enabled: false
-      vars:
-        kubernetes_venv_interpreter: "{{ home }}/.virtualenvs/kubernetes/bin/python3"
   tags: gpu
+
+- name: Install Stable Diffusion prerequisites
+  hosts: controller
+  vars:
+    huggingface_cli_executable: "{{ home }}/.virtualenvs/huggingface-cli/bin/huggingface-cli"
+  tasks:
+    # All subsequent invocations of huggingface-cli will use this virtualenv.
+    - name: Install huggingface-cli
+      ansible.builtin.pip:
+        name: "huggingface_hub[cli]"
+        state: present
+        virtualenv: "{{ home }}/.virtualenvs/huggingface-cli"
+        virtualenv_command: python3 -m venv
+
+    - name: Create directories
+      ansible.builtin.file:
+        path: "{{ home }}/models/{{ item }}"
+        state: directory
+        owner: cc
+        mode: 0755
+      loop:
+        - checkpoints
+        - clip
+
+    - name: Login with token
+      ansible.builtin.command: "{{ huggingface_cli_executable_interpreter }} login --token {{ token }}"
+
+    - name: Download Stable Diffusion 3.5 model
+      ansible.builtin.command: >
+        {{ huggingface_cli_executable_interpreter }} download stabilityai/stable-diffusion-3.5-large sd3.5_large.safetensors
+        --local-dir {{ home }}/models/checkpoints
+
+    - name: Download text encoders
+      ansible.builtin.command: >
+        {{ huggingface_cli_executable_interpreter }} download stabilityai/stable-diffusion-3.5-large text_encoders/{{ item }}
+        --local-dir {{ home }}/models/clip
+      loop:
+        - clip_g.safetensors
+        - clip_l.safetensors
+        - t5xxl_fp16.safetensors
+  when: token is defined
 
 - name: Deploy benchmark
   hosts: controller
