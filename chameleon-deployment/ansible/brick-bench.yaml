@@ -2,13 +2,21 @@
 - name: Setup nvidia-container-toolkit-base
   hosts: worker
   tasks:
-    - name: Install nvidia-container-toolkit-base
+    - name: Install nvidia-container-toolkit
       ansible.builtin.apt:
-        name: nvidia-container-toolkit-base
+        name: nvidia-container-toolkit
         state: present
 
     - name: Generate CDI
-      command: nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yamlS
+      ansible.builtin.command: nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
+
+    - name: Configure nvidia-container-runtime
+      ansible.builtin.command: nvidia-ctk runtime configure --runtime=containerd
+
+    - name: Restart containerd
+      ansible.builtin.systemd_service:
+        name: containerd
+        state: restarted
   become: true
 
 - name: Setup gpu-operator
@@ -46,6 +54,8 @@
         update_repo_cache: true
         wait: true
         values:
+          cdi:
+            enabled: true
           driver:
             enabled: false
           toolkit:
