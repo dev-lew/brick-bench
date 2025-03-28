@@ -111,7 +111,6 @@ spec:
               name: checkpoints
             - mountPath: /stable-diffusion/models/clip
               name: clip
-
       volumes:
         - name: checkpoints
           persistentVolumeClaim:
