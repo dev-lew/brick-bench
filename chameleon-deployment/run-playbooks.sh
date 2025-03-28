@@ -32,5 +32,11 @@ echo "done"
 ansible-galaxy install -r deps/requirements.yaml
 
 echo "Running ansible-playbooks"
+
 ansible-playbook ansible/kubernetes.yaml
-ansible-playbook ansible/brick-bench.yaml "${token:+--extra-vars ${token}}"
+
+if [ -n "${token}" ]; then
+    ansible-playbook ansible/brick-bench.yaml --extra-vars "token=${token}"
+else
+    ansible-playbook ansible/brick-bench.yaml
+fi
