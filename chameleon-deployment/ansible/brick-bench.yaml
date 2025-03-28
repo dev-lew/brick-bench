@@ -7,13 +7,10 @@
         name: nvidia-container-toolkit
         state: present
 
-    - name: Generate CDI
-      ansible.builtin.command: nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml
-
     # The nvidia runtime class is required for the GPU operator, so we configure that
-    # along with the CDI, which provides the nvidia-cdi runtime class. All GPU workload pods
-    # will specify the nvidia-cdi runtime class in their manifests. All other pods should
-    # be using containerd by default
+    # ss. All GPU workload pods will specify the nvidia runtime class in their manifests.
+    # All other pods should be using containerd by default. Tried to get CDI working
+    # but could not succeed
     - name: Configure nvidia-container-runtime
       ansible.builtin.command: nvidia-ctk runtime configure --runtime=containerd
 
@@ -22,6 +19,7 @@
         name: containerd
         state: restarted
   become: true
+  tags: toolkit
 
 - name: Setup gpu-operator
   hosts: controller
@@ -58,8 +56,6 @@
         update_repo_cache: true
         wait: true
         values:
-          cdi:
-            enabled: true
           driver:
             enabled: false
           toolkit:
@@ -67,7 +63,7 @@
   tags: gpu
 
 - name: Install Stable Diffusion prerequisites
-  hosts: controller
+  hosts: worker
   vars:
     huggingface_cli_executable: "{{ home }}/.virtualenvs/huggingface-cli/bin/huggingface-cli"
   tasks:
@@ -78,6 +74,7 @@
         state: present
         virtualenv: "{{ home }}/.virtualenvs/huggingface-cli"
         virtualenv_command: python3 -m venv
+      when: token is defined
 
     - name: Create directories
       ansible.builtin.file:
@@ -88,24 +85,28 @@
       loop:
         - checkpoints
         - clip
+      when: token is defined
 
     - name: Login with token
-      ansible.builtin.command: "{{ huggingface_cli_executable_interpreter }} login --token {{ token }}"
+      ansible.builtin.command: "{{ huggingface_cli_executable }} login --token {{ token }}"
+      when: token is defined
 
     - name: Download Stable Diffusion 3.5 model
       ansible.builtin.command: >
-        {{ huggingface_cli_executable_interpreter }} download stabilityai/stable-diffusion-3.5-large sd3.5_large.safetensors
+        {{ huggingface_cli_executable }} download stabilityai/stable-diffusion-3.5-large sd3.5_large.safetensors
         --local-dir {{ home }}/models/checkpoints
+      when: token is defined
 
     - name: Download text encoders
       ansible.builtin.command: >
-        {{ huggingface_cli_executable_interpreter }} download stabilityai/stable-diffusion-3.5-large text_encoders/{{ item }}
+        {{ huggingface_cli_executable }} download stabilityai/stable-diffusion-3.5-large text_encoders/{{ item }}
         --local-dir {{ home }}/models/clip
       loop:
         - clip_g.safetensors
         - clip_l.safetensors
         - t5xxl_fp16.safetensors
-  when: token is defined
+      when: token is defined
+  tags: prereq
 
 - name: Deploy benchmark
   hosts: controller
@@ -128,4 +129,4 @@
         force: true
       vars:
         ansible_python_interpreter: "{{ kubernetes_venv_interpreter }}"
-      tags: mani
+  tags: deploy
