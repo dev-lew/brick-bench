@@ -7,8 +7,8 @@
         name: nvidia-container-toolkit
         state: present
 
-    # The nvidia runtime class is required for the GPU operator, so we configure that
-    # ss. All GPU workload pods will specify the nvidia runtime class in their manifests.
+    # The nvidia runtime class is required for the GPU operator, so we configure that.
+    # All GPU workload pods will specify the nvidia runtime class in their manifests.
     # All other pods should be using containerd by default. Tried to get CDI working
     # but could not succeed
     - name: Configure nvidia-container-runtime
@@ -42,7 +42,7 @@
         update_cache: true
       become: true
 
-    - name: Add helm repository
+    - name: Add nvidia helm repository
       kubernetes.core.helm_repository:
         name: nvidia
         repo_url: https://helm.ngc.nvidia.com/nvidia
