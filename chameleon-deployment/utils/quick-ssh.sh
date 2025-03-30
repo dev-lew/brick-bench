@@ -11,16 +11,19 @@ EOF
 
 if [ -z "${1}" ]; then
     echo "${0}: You must provide a hostname."
+    echo "${usage}"
     exit 1
 fi
 
 if [ -z "${2}" ]; then
     echo "${0}: You must provide a keyfile."
+    echo "${usage}"
     exit 1
 fi
 
 if [ "${1}" != "controller" ] && [ "${1}" != "worker" ]; then
     echo "${0}: hostname is not one of: controller, worker."
+    echo "${usage}"
     exit 1
 fi
 
