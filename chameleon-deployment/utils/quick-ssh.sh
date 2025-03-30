@@ -20,7 +20,8 @@ if [ -z "${2}" ]; then
 fi
 
 if [ "${1}" != "controller" ] && [ "${1}" != "worker" ]; then
-   echo "${0}: hostname is not one of: controller, worker."
+    echo "${0}: hostname is not one of: controller, worker."
+    exit 1
 fi
 
 HOSTFILE="../ansible/inventory/hosts"
