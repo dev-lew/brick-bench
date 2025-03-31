@@ -32,8 +32,8 @@ HOSTFILE="../ansible/inventory/hosts"
 if [ "${1}" = "controller" ]; then
     hostname=$(sed -n "/^\[controller\]/{n; p}" "${HOSTFILE}")
 else
-    hostname=$(sed -n "/^\[controller\]/{n; p}" "${HOSTFILE}")
+    hostname=$(sed -n "/^\[worker\]/{n; p}" "${HOSTFILE}")
 fi
 
-ssh -i "${2}" "cc@${hostname}"
+ssh -o StrictHostKeyChecking=no -i "${2}" "cc@${hostname}"
 
