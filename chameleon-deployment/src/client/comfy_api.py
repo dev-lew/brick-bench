@@ -1,7 +1,6 @@
-import json
 import threading
 import random
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Optional
 
 
@@ -12,14 +11,12 @@ class ComfyUINode:
         self.class_type = class_type
         self.meta = meta
 
-    def to_json(self) -> str:
-        return json.dumps(
-            {
-                self.node_id: self.inputs,
-                "class_type": self.class_type,
-                "_meta": self.meta,
-            }
-        )
+    def to_json(self) -> dict:
+        return {
+            "inputs": self.inputs,
+            "class_type": self.class_type,
+            "_meta": self.meta,
+        }
 
 
 @dataclass
@@ -30,10 +27,10 @@ class KSamplerInput:
     sampler_name: str = "euler"
     scheduler: str = "sgm_uniform"
     denoise: int = 1
-    model: list[str | int] = ["4", 0]
-    positive: list[str | int] = ["16", 0]
-    negative: list[str | int] = ["40", 0]
-    latent_image: list[str | int] = ["53", 0]
+    model: list[str | int] = field(default_factory=lambda: ["4", 0])
+    positive: list[str | int] = field(default_factory=lambda: ["16", 0])
+    negative: list[str | int] = field(default_factory=lambda: ["40", 0])
+    latent_image: list[str | int] = field(default_factory=lambda: ["53", 0])
 
 
 class KSampler(ComfyUINode):
@@ -55,14 +52,17 @@ class LoadCheckpoint(ComfyUINode):
 
     def __init__(self, inputs: LoadCheckpointInput = LoadCheckpointInput()) -> None:
         super().__init__(
-            self.node_id, asdict(inputs), "LoadCheckpoint", {"title": "Load Checkpoint"}
+            self.node_id,
+            asdict(inputs),
+            "CheckpointLoaderSimple",
+            {"title": "Load Checkpoint"},
         )
 
 
 @dataclass
 class VAEDecodeInput:
-    samples: list[str | int] = ["3", 0]
-    vae: list[str | int] = ["4", 2]
+    samples: list[str | int] = field(default_factory=lambda: ["3", 0])
+    vae: list[str | int] = field(default_factory=lambda: ["4", 2])
 
 
 class VAEDecode(ComfyUINode):
@@ -77,7 +77,7 @@ class VAEDecode(ComfyUINode):
 @dataclass
 class SaveImageInput:
     filename_prefix: str = "ComfyUI"
-    images: list[str | int] = ["8", 0]
+    images: list[str | int] = field(default_factory=lambda: ["8", 0])
 
 
 class SaveImage(ComfyUINode):
@@ -92,11 +92,14 @@ class SaveImage(ComfyUINode):
 @dataclass
 class CLIPTextEncodeInput:
     text: str
-    clip: list[str | int] = ["55", 0]
+    clip: list[str | int] = field(default_factory=lambda: ["55", 0])
 
 
 class CLIPTextWords:
     words = []
+
+    # We lock because many locust threads will be running this
+    # code. We only need one to open the file and load the words.
     _lock = threading.Lock()
 
     def __init__(self):
@@ -137,3 +140,77 @@ class CLIPTextEncodeNegative(ComfyUINode):
         super().__init__(
             self.node_id, asdict(inputs), "CLIPTextEncode", {"title": "Positive Prompt"}
         )
+
+
+@dataclass
+class EmptySD3LatentImageInput:
+    width: int = 1024
+    height: int = 1024
+    batch_size: int = 1
+
+
+class EmptySD3LatentImage(ComfyUINode):
+    node_id = "53"
+
+    def __init__(
+        self, inputs: EmptySD3LatentImageInput = EmptySD3LatentImageInput()
+    ) -> None:
+        super().__init__(
+            self.node_id,
+            asdict(inputs),
+            "EmptySD3LatentImage",
+            {"title": "EmptySD3LatentImage"},
+        )
+
+
+@dataclass
+class TripleCLIPLoaderInput:
+    clip_name1: str = "clip_g.safetensors"
+    clip_name2: str = "clip_l.safetensors"
+    clip_name3: str = "t5xxl_fp16.safetensors"
+
+
+class TripleCLIPLoader(ComfyUINode):
+    node_id = "55"
+
+    def __init__(self, inputs: TripleCLIPLoaderInput = TripleCLIPLoaderInput()) -> None:
+        super().__init__(
+            self.node_id,
+            asdict(inputs),
+            "TripleCLIPLoader",
+            {"title": "TripleCLIPLoader"},
+        )
+
+
+class ComfyUIRequest:
+    def __init__(
+        self,
+        ksampler: KSampler = KSampler(),
+        load_checkpoint: LoadCheckpoint = LoadCheckpoint(),
+        vae_decode: VAEDecode = VAEDecode(),
+        save_image: SaveImage = SaveImage(),
+        positive_prompt: CLIPTextEncodePositive = CLIPTextEncodePositive(),
+        negative_prompt: CLIPTextEncodeNegative = CLIPTextEncodeNegative(),
+        latent_image: EmptySD3LatentImage = EmptySD3LatentImage(),
+        triple_clip_loader: TripleCLIPLoader = TripleCLIPLoader(),
+    ) -> None:
+        self.ksampler = ksampler
+        self.load_checkpoint = load_checkpoint
+        self.vae_decode = vae_decode
+        self.save_image = save_image
+        self.positive_prompt = positive_prompt
+        self.negative_prompt = negative_prompt
+        self.latent_image = latent_image
+        self.triple_clip_loader = triple_clip_loader
+
+    def generate_data(self) -> dict:
+        return {
+            self.ksampler.node_id: self.ksampler.to_json(),
+            self.load_checkpoint.node_id: self.load_checkpoint.to_json(),
+            self.vae_decode.node_id: self.vae_decode.to_json(),
+            self.save_image.node_id: self.save_image.to_json(),
+            self.positive_prompt.node_id: self.positive_prompt.to_json(),
+            self.negative_prompt.node_id: self.negative_prompt.to_json(),
+            self.latent_image.node_id: self.latent_image.to_json(),
+            self.triple_clip_loader.node_id: self.triple_clip_loader.to_json(),
+        }
