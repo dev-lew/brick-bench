@@ -32,13 +32,17 @@ resource "openstack_networking_floatingip_v2" "floating_ips" {
 }
 
 resource "openstack_compute_floatingip_associate_v2" "floatingip_associate_cpu" {
+  count = var.use_gpu ? 1 : 2
+
   floating_ip = openstack_networking_floatingip_v2.floating_ips[0].address
-  instance_id = openstack_compute_instance_v2.cpu_instance.id
+  instance_id = openstack_compute_instance_v2.cpu_instance[count.index].id
 }
 
 resource "openstack_compute_floatingip_associate_v2" "floatingip_associate_gpu" {
+  count = var.use_gpu ? 1 : 0
+
   floating_ip = openstack_networking_floatingip_v2.floating_ips[1].address
-  instance_id = openstack_compute_instance_v2.gpu_instance.id
+  instance_id = openstack_compute_instance_v2.gpu_instance[count.index].id
 }
 
 resource "openstack_networking_secgroup_v2" "secgroup" {
@@ -69,9 +73,10 @@ resource "openstack_compute_keypair_v2" "keypair" {
 }
 
 resource "openstack_compute_instance_v2" "cpu_instance" {
+  count      = var.use_gpu ? 1 : 2
   depends_on = [openstack_networking_subnet_v2.subnet]
 
-  name            = "controller"
+  name            = count.index == 0 ? "controller" : "worker"
   flavor_name     = "baremetal"
   image_name      = "CC-Ubuntu24.04"
   key_pair        = openstack_compute_keypair_v2.keypair.name
@@ -89,6 +94,7 @@ resource "openstack_compute_instance_v2" "cpu_instance" {
 }
 
 resource "openstack_compute_instance_v2" "gpu_instance" {
+  count      = var.use_gpu ? 1 : 0
   depends_on = [openstack_networking_subnet_v2.subnet]
 
   name            = "worker"

@@ -24,7 +24,7 @@ while getopts g: optarg; do
     esac
 done
 
-END_DATE="$(date --date '+1 days' '+%F %H:%M')"
+END_DATE="$(date --date '+7 days' '+%F %H:%M')"
 
 if [ "${use_gpu}" = true ]; then
     openstack reservation lease create \

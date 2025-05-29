@@ -1,3 +1,6 @@
+*~
+\#*\#
+
 .ansible.log
 .terraform
 .terraform.tfstate
@@ -6,3 +9,4 @@ hosts
 *openrc*
 terraform.tfstate*
 terraform.tfvars
+
