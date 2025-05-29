@@ -34,7 +34,7 @@ resource "openstack_networking_floatingip_v2" "floating_ips" {
 resource "openstack_compute_floatingip_associate_v2" "floatingip_associate_cpu" {
   count = var.use_gpu ? 1 : 2
 
-  floating_ip = openstack_networking_floatingip_v2.floating_ips[0].address
+  floating_ip = openstack_networking_floatingip_v2.floating_ips[count.index].address
   instance_id = openstack_compute_instance_v2.cpu_instance[count.index].id
 }
 
