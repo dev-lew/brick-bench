@@ -19,7 +19,9 @@
         name: containerd
         state: restarted
   become: true
-  tags: toolkit
+  tags:
+    - toolkit
+    - gpu
 
 - name: Setup gpu-operator
   hosts: controller
@@ -123,10 +125,11 @@
 
     - name: Apply image gen manifests
       kubernetes.core.k8s:
-        definition: "{{ lookup('file', 'kubernetes-manifests/image-gen.yaml') | from_yaml_all }}"
+        definition: "{{ lookup('file', 'kubernetes-manifests/{{ image_gen_manifest }}') | from_yaml_all }}"
         namespace: brick-bench
         state: present
         force: true
+      when: image_gen_manifest is defined
       vars:
         ansible_python_interpreter: "{{ kubernetes_venv_interpreter }}"
   tags: deploy
