@@ -37,7 +37,7 @@ ansible-galaxy install -r deps/requirements.yaml
 
 echo "Running ansible-playbooks"
 
-#ansible-playbook ansible/kubernetes.yaml
+ansible-playbook ansible/kubernetes.yaml
 
 extra_vars=""
 skip_tags=""
