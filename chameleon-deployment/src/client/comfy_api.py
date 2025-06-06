@@ -127,7 +127,7 @@ class CLIPTextEncodePositive(ComfyUINode):
             )
 
         super().__init__(
-            self.node_id, asdict(inputs), "ClipTextEncode", {"title": "Positive Prompt"}
+            self.node_id, asdict(inputs), "CLIPTextEncode", {"title": "Positive Prompt"}
         )
 
 
