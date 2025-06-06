@@ -31,7 +31,7 @@ if [ "${use_gpu}" = true ]; then
     RESERVATION_ID_GPU=$(openstack reservation lease show "${lease_name}-gpu" -f value -c reservations | \
                              jaq -c 'select(.resource_type == "physical:host") | .id')
 else
-    RESERVATION_ID_GPU=""
+    RESERVATION_ID_GPU="\"\""
 fi
 
 cat << EOF > ../terraform/terraform.tfvars
