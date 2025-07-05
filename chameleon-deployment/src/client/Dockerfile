@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM python:3.12.4-slim@sha256:f11725aba18c19664a408902103365eaf8013823ffc56270f921d1dc78a198cb as base
+FROM python:3.12.4-slim@sha256:f11725aba18c19664a408902103365eaf8013823ffc56270f921d1dc78a198cb AS base
 
-FROM base as builder
+FROM base AS builder
 
 COPY requirements.txt .
 
@@ -31,6 +31,6 @@ COPY --from=builder /install /usr/local
 
 COPY locustfile.py .
 
-ENTRYPOINT locust --headless --csv "${CSV_PATH}" --run-time "${RUN_TIME}" \
-           --spawn-rate "${SPAWN_RATE}"  --users "${NUM_USERS}"   \
-           --processes "${NUM_PROCESSES}"
+ENTRYPOINT ["locust", "--headless", "--csv", "${CSV_PATH}","--run-time", "${RUN_TIME}",
+           "--spawn-rate", "${SPAWN_RATE}", "--users", "${NUM_USERS}",
+           "--processes", "${NUM_PROCESSES}"]
