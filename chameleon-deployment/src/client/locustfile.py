@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 from comfy_api import ComfyUIRequest
 from locust import HttpUser, task
 
