@@ -21,7 +21,7 @@ while getopts gt: optarg; do
     esac
 done
 
-VENV_PATH="${HOME}/.virtualenvs/brick-bench"
+VENV_PATH=".venv"
 
 if ! . "${VENV_PATH}/bin/activate"; then
     echo "Failed to source virtualenv. Is VENV_PATH set correctly?"
@@ -33,7 +33,7 @@ export ANSIBLE_CONFIG="ansible/ansible.cfg"
 export ANSIBLE_HOME="${VENV_PATH}"
 echo "done"
 
-ansible-galaxy install -r deps/requirements.yaml
+ansible-galaxy install -r ansible/deps/requirements.yaml
 
 echo "Running ansible-playbooks"
 

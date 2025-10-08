@@ -1,0 +1,89 @@
+[project]
+name = "brick-bench"
+version = "0.1.0"
+description = "Deploy brick-bench, a simple image generation microservice, to Chameleon Cloud"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "ansible==11.3.0",
+    "ansible-core==2.18.3",
+    "autopage==0.5.2",
+    "babel==2.17.0",
+    "cachetools==5.5.2",
+    "certifi==2025.1.31",
+    "cffi==1.17.1",
+    "charset-normalizer==3.4.1",
+    "cliff==4.9.1",
+    "cmd2==2.5.11",
+    "cryptography==44.0.2",
+    "debtcollector==3.0.0",
+    "decorator==5.2.1",
+    "dogpile-cache==1.3.4",
+    "durationpy==0.9",
+    "google-auth==2.38.0",
+    "idna==3.10",
+    "iso8601==2.1.0",
+    "jinja2==3.1.6",
+    "jmespath==1.0.1",
+    "jsonpatch==1.33",
+    "jsonpointer==3.0.0",
+    "keystoneauth1==5.10.0",
+    "kubernetes==32.0.1",
+    "markupsafe==3.0.2",
+    "msgpack==1.1.0",
+    "netaddr==1.3.0",
+    "oauthlib==3.2.2",
+    "openstacksdk==4.4.0",
+    "os-service-types==1.7.0",
+    "osc-lib==3.2.0",
+    "oslo-config==9.7.1",
+    "oslo-context==5.7.1",
+    "oslo-i18n==6.5.1",
+    "oslo-log==7.1.0",
+    "oslo-serialization==5.7.0",
+    "oslo-utils==8.2.0",
+    "packaging==24.2",
+    "pbr==6.1.1",
+    "platformdirs==4.3.7",
+    "prettytable==3.16.0",
+    "psutil==7.0.0",
+    "pyasn1==0.6.1",
+    "pyasn1-modules==0.4.1",
+    "pycparser==2.22",
+    "pyparsing==3.2.3",
+    "pyperclip==1.9.0",
+    "python-blazarclient",
+    "python-cinderclient==9.7.0",
+    "python-dateutil==2.9.0.post0",
+    "python-keystoneclient==5.6.0",
+    "python-openstackclient==7.4.0",
+    "pyyaml==6.0.2",
+    "requests==2.32.3",
+    "requests-oauthlib==2.0.0",
+    "requestsexceptions==1.4.0",
+    "resolvelib==1.0.1",
+    "rfc3986==2.0.0",
+    "rsa==4.9",
+    "six==1.17.0",
+    "stevedore==5.4.1",
+    "typing-extensions==4.12.2",
+    "tzdata==2025.2",
+    "urllib3==2.3.0",
+    "wcwidth==0.2.13",
+    "websocket-client==1.8.0",
+    "wrapt==1.17.2",
+]
+
+[tool.uv.sources]
+python-blazarclient = { git = "https://github.com/chameleoncloud/python-blazarclient", rev = "d33522288ced50e2af4ea022a9b651cb410c3700" }
+
+[dependency-groups]
+dev = [
+    "locust>=2.39.0",
+    "ruff>=0.12.11",
+]
+
+[tool.ruff]
+target-version = "py313"
+extend-select = ["E", "I", "F", "UP"]
+

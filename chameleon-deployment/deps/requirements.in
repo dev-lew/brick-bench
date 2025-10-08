@@ -1,5 +1,0 @@
-ansible
-kubernetes
-python-blazarclient @ git+https://github.com/chameleoncloud/python-blazarclient@d33522288ced50e2af4ea022a9b651cb410c3700
-python-openstackclient
-
