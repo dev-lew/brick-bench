@@ -2,7 +2,6 @@ extern crate ffmpeg_next as ffmpeg;
 
 use crate::ffmpeg::util::format::Pixel;
 use anyhow::{Result, anyhow};
-use ffmpeg::Error;
 use ffmpeg::codec::context;
 use ffmpeg::codec::decoder;
 use ffmpeg::format;
@@ -37,16 +36,17 @@ fn convert_pixel_format(video: &decoder::Video, to: Pixel) -> Result<Context> {
     )?)
 }
 
-fn decoded_frames(decoder: &mut ffmpeg::decoder::Video) -> impl Iterator<Item = Video> {
-    iter::from_fn(|| {
-        let mut decoded = Video::empty();
+fn decoded_frames(decoder: &mut decoder::Video) -> impl Iterator<Item = Video> {
+    iter::from_fn(move || {
+        let mut frame = Video::empty();
 
-        match decoder.receive_frame(&mut decoded) {
-            Ok(_) => Some(decoded),
-            Err(Error::Eof) => None,
+        match decoder.receive_frame(&mut frame) {
+            Ok(_) => Some(frame),
 
-            // We hope we don't get AVERROR(EAGAIN)
-            _ => panic!(),
+            // 11 is EAGAIN, this means we need more frames
+            Err(ffmpeg::Error::Eof) | Err(ffmpeg::Error::Other { errno: 11 }) => None,
+
+            Err(e) => panic!("Decoder error: {:?}", e),
         }
     })
 }
@@ -58,8 +58,8 @@ fn convert_frame(scaler: &mut Context, frame: Video) -> Video {
     converted
 }
 
-fn write_ppm(frame: &Video, index: usize) -> Result<()> {
-    let mut file = File::create(format!("frame{}.ppm", index))?;
+fn write_ppm(index: usize, frame: &Video) -> Result<()> {
+    let mut file = File::create(format!("./test/frame{}.ppm", index))?;
 
     file.write_all(format!("P6\n{} {}\n255\n", frame.width(), frame.height()).as_bytes())?;
     file.write_all(frame.data(0))?;
@@ -82,18 +82,27 @@ fn main() -> Result<()> {
     // Convert decoded frames to RGB24 for PPM output
     let mut scaler: Context = convert_pixel_format(&video_decoder, Pixel::RGB24).unwrap();
 
+    let mut frame_index = 0;
+
+    let mut process_frames = |decoder: &mut decoder::Video| -> Result<()> {
+        for frame in decoded_frames(decoder) {
+            let converted = convert_frame(&mut scaler, frame);
+            write_ppm(frame_index, &converted)?;
+            frame_index += 1;
+        }
+        Ok(())
+    };
+
     for (stream, packet) in ictx.packets() {
         if stream.index() == video_stream_index {
             video_decoder.send_packet(&packet)?;
-
-            let processed_frames =
-                decoded_frames(&mut video_decoder).map(|frame| convert_frame(&mut scaler, frame));
-
-            for (idx, frame) in processed_frames.enumerate() {
-                write_ppm(&frame, idx).unwrap();
-            }
+            process_frames(&mut video_decoder)?;
         }
     }
+
+    // Flush any remaining frames at the end
+    video_decoder.send_eof()?;
+    process_frames(&mut video_decoder)?;
 
     Ok(())
 }
