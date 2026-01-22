@@ -43,6 +43,7 @@ The following list notes the original C API as well
 Type-by-type breakdown (Rust ffmpeg-next ↔ FFmpeg C API)
 
 1. `format::context::Input`
+
    C equivalent: `AVFormatContext`
 
    Role:
@@ -60,6 +61,7 @@ Type-by-type breakdown (Rust ffmpeg-next ↔ FFmpeg C API)
    * streams()            → exposes AVStream list
 
 2. `ffmpeg::Stream`
+
    C equivalent: `AVStream`
 
    Role:
@@ -76,6 +78,7 @@ Type-by-type breakdown (Rust ffmpeg-next ↔ FFmpeg C API)
    * Provides codec parameters for decoder initialization
 
 3. `codec::context::Context`
+
    C equivalent: `AVCodecContext`
 
    Role:
@@ -96,6 +99,7 @@ Type-by-type breakdown (Rust ffmpeg-next ↔ FFmpeg C API)
    * Fed packets / produces frames
 
 4. `decoder::Video`
+
    C equivalent: `AVCodecContext` (video-specialized view)
 
    Role:
@@ -111,6 +115,7 @@ Type-by-type breakdown (Rust ffmpeg-next ↔ FFmpeg C API)
    * Frames may be delayed due to B-frames
 
 5. `format::Packet`
+
    C equivalent: `AVPacket`
 
    Role:
@@ -127,6 +132,7 @@ Type-by-type breakdown (Rust ffmpeg-next ↔ FFmpeg C API)
    * Must be sent in demuxer order
 
 6. `util::frame::video::Video`
+
    C equivalent: `AVFrame`
 
    Role:
@@ -140,15 +146,16 @@ Type-by-type breakdown (Rust ffmpeg-next ↔ FFmpeg C API)
    * pts                  → presentation timestamp
 
    Common layouts:
-   - YUV420P: 3 planes (Y, U, V)
-   - NV12:   2 planes (Y, UV)
-   - RGB24:  1 packed plane
+   * YUV420P: 3 planes (Y, U, V)
+   * NV12:   2 planes (Y, UV)
+   * RGB24:  1 packed plane
 
    Notes:
-   - Frame memory may be reference-counted
-   - Reused internally by the decoder
+   * Frame memory may be reference-counted
+   * Reused internally by the decoder
 
 7. `util::format::Pixel`
+
    C equivalent: `enum AVPixelFormat`
 
    Role:
@@ -164,6 +171,7 @@ Type-by-type breakdown (Rust ffmpeg-next ↔ FFmpeg C API)
    * Display or file output often requires conversion
 
 8. `software::scaling::Context`
+
    C equivalent: `struct SwsContext` (libswscale)
 
    Role:
@@ -182,6 +190,7 @@ Type-by-type breakdown (Rust ffmpeg-next ↔ FFmpeg C API)
    - Should be reused for all frames with same geometry
 
 9. `media::Type`
+
    C equivalent: `enum AVMediaType`
 
    Role:
@@ -197,6 +206,7 @@ Type-by-type breakdown (Rust ffmpeg-next ↔ FFmpeg C API)
    * Decoder specialization
 
 10. Error handling (implicit)
+
     C equivalents:
     * `AVERROR(EAGAIN)`
     * `AVERROR_EOF`
