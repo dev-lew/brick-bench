@@ -1,0 +1,85 @@
+syntax = "proto3";
+package videodecode;
+
+service VideoDecoder {
+    rpc Decode(stream DecodeRequest) returns (stream DecodeResponse);
+}
+
+// Client to Server
+message DecodeStart {
+    string request_id = 1;
+    string filename = 2;           // optional, for logging
+}
+
+message VideoChunk {
+    string request_id = 1;
+    uint64 offset = 2;             // byte offset for ordering
+    bytes data = 3;                // video data chunk (~1MB)
+    bool eof = 4;                  // marks last chunk
+}
+
+message DecodeRequest {
+    oneof msg {
+        DecodeStart start = 1;
+        VideoChunk chunk = 2;
+    }
+}
+
+// Server to Client
+enum PixelFormat {
+    PIXEL_FORMAT_UNSPECIFIED = 0;
+    PIXEL_FORMAT_RGB24 = 1;
+}
+
+message FrameInfo {
+    uint64 frame_index = 1;
+    uint32 width = 2;
+    uint32 height = 3;
+    PixelFormat pixel_format = 4;
+    uint32 stride = 5;             // bytes per row
+    int64 pts = 6;                 // presentation timestamp
+}
+
+message FrameChunk {
+    string request_id = 1;
+    FrameInfo info = 2;
+    uint32 chunk_index = 3;
+    uint32 chunk_count = 4;
+    bytes data = 5;
+}
+
+message Progress {
+    string request_id = 1;
+    uint64 bytes_received = 2;
+    uint64 frames_decoded = 3;
+}
+
+enum DecodeErrorCode {
+    DECODE_ERROR_CODE_UNSPECIFIED = 0;
+    DECODE_ERROR_CODE_INVALID_ARGUMENT = 1;
+    DECODE_ERROR_CODE_UNSUPPORTED_FORMAT = 2;
+    DECODE_ERROR_CODE_DEMUX_ERROR = 3;
+    DECODE_ERROR_CODE_DECODE_ERROR = 4;
+    DECODE_ERROR_CODE_SCALER_ERROR = 5;
+    DECODE_ERROR_CODE_INTERNAL = 6;
+}
+
+message DecodeError {
+    string request_id = 1;
+    DecodeErrorCode code = 2;
+    string message = 3;
+}
+
+message DecodeDone {
+    string request_id = 1;
+    uint64 frames_decoded = 2;
+}
+
+message DecodeResponse {
+    oneof msg {
+        FrameChunk frame_chunk = 1;
+        Progress progress = 2;
+        DecodeError error = 3;
+        DecodeDone done = 4;
+    }
+}
