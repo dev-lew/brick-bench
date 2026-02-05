@@ -296,7 +296,10 @@ impl VideoDecoder for MyVideoDecoder {
                                                         DecodeError {
                                                             request_id: request_id.clone(),
                                                             code: DecodeErrorCode::Internal.into(),
-                                                            message: format!("Task panicked: {}", e),
+                                                            message: format!(
+                                                                "Task panicked: {}",
+                                                                e
+                                                            ),
                                                         },
                                                     ),
                                                 ),

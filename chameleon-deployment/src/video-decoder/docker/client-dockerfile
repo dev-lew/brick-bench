@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1
+
+FROM rust:1.89@sha256:a31942999645514ff53f470d395a9b3f06e05149faa845732d0cdf132767dcbd AS builder
+
+WORKDIR /usr/src/video-decoder
+
+COPY .. .
+
+RUN <<EOF
+apt update
+apt install -y ffmpeg libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev protobuf-compiler
+cargo build --release -p client
+EOF
+
+FROM debian:trixie-slim@sha256:c99c73388e005d98f2f131b15fa9389f2a8eec2888a35dc30455e5936467803b
+
+# Suggested preamble on Dockerhub
+RUN <<EOF
+apt update
+apt install -y extra-runtime-dependencies
+rm -rf /var/lib/apt/lists/*
+EOF
+
+COPY --from=builder /usr/src/video-decoder/target/release/client /usr/local/bin/
+
+RUN mkdir /output
+
+CMD ["client", "${VIDEO_PATH}", "/output"]
