@@ -17,7 +17,7 @@ FROM debian:trixie-slim@sha256:c99c73388e005d98f2f131b15fa9389f2a8eec2888a35dc30
 # Suggested preamble on Dockerhub
 RUN <<EOF
 apt update
-apt install -y extra-runtime-dependencies
+apt install -y libavcodec-dev libavdevice-dev libavfilter-dev libavformat-dev libavutil-dev
 rm -rf /var/lib/apt/lists/*
 EOF
 

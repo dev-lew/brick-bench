@@ -24,11 +24,11 @@ while getopts g: optarg; do
     esac
 done
 
-RESERVATION_ID_CPU=$(openstack reservation lease show "${lease_name}-cpu" -f value -c reservations | \
+RESERVATION_ID_CPU=$(uv run openstack reservation lease show "${lease_name}-cpu" -f value -c reservations | \
                          jaq -c 'select(.resource_type == "physical:host") | .id')
 
 if [ "${use_gpu}" = true ]; then
-    RESERVATION_ID_GPU=$(openstack reservation lease show "${lease_name}-gpu" -f value -c reservations | \
+    RESERVATION_ID_GPU=$(uv run openstack reservation lease show "${lease_name}-gpu" -f value -c reservations | \
                              jaq -c 'select(.resource_type == "physical:host") | .id')
 else
     RESERVATION_ID_GPU="\"\""
