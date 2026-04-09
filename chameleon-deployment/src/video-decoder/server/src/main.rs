@@ -19,6 +19,25 @@ use tempfile::NamedTempFile;
 
 const FRAME_CHUNK_SIZE: usize = 1024 * 1024;
 
+async fn send_error(
+    tx: &mpsc::Sender<Result<DecodeResponse, Status>>,
+    request_id: &str,
+    code: DecodeErrorCode,
+    message: String,
+) {
+    let _ = tx
+        .send(Ok(DecodeResponse {
+            msg: Some(proto::videodecode::decode_response::Msg::Error(
+                DecodeError {
+                    request_id: request_id.to_string(),
+                    code: code.into(),
+                    message,
+                },
+            )),
+        }))
+        .await;
+}
+
 #[derive(Default)]
 pub struct MyVideoDecoder;
 
@@ -166,22 +185,8 @@ impl VideoDecoder for MyVideoDecoder {
 
                         temp_file = match NamedTempFile::new() {
                             Ok(f) => Some(f),
-
                             Err(e) => {
-                                let _ = tx
-                                    .send(Ok(DecodeResponse {
-                                        msg: Some(proto::videodecode::decode_response::Msg::Error(
-                                            DecodeError {
-                                                request_id: request_id.clone(),
-                                                code: DecodeErrorCode::Internal.into(),
-                                                message: format!(
-                                                    "Failed to create temp file: {}",
-                                                    e
-                                                ),
-                                            },
-                                        )),
-                                    }))
-                                    .await;
+                                send_error(&tx, &request_id, DecodeErrorCode::Internal, format!("Failed to create temp file: {}", e)).await;
                                 return;
                             }
                         };
@@ -193,123 +198,69 @@ impl VideoDecoder for MyVideoDecoder {
                     }
 
                     Some(Msg::Chunk(chunk)) => {
-                        if let Some(ref mut file) = temp_file {
-                            if let Err(e) = file.write_all(&chunk.data) {
+                        let Some(ref mut file) = temp_file else { continue };
+
+                        if let Err(e) = file.write_all(&chunk.data) {
+                            send_error(&tx, &request_id, DecodeErrorCode::Internal, format!("Failed to write chunk: {}", e)).await;
+                            return;
+                        }
+
+                        bytes_received += chunk.data.len() as u64;
+
+                        let _ = tx
+                            .send(Ok(DecodeResponse {
+                                msg: Some(proto::videodecode::decode_response::Msg::Progress(
+                                    Progress {
+                                        request_id: request_id.clone(),
+                                        bytes_received,
+                                        frames_decoded: 0,
+                                    },
+                                )),
+                            }))
+                            .await;
+
+                        if !chunk.eof {
+                            continue;
+                        }
+
+                        if let Err(e) = file.flush() {
+                            send_error(&tx, &request_id, DecodeErrorCode::Internal, format!("Failed to flush temp file: {}", e)).await;
+                            return;
+                        }
+
+                        let video_path = file.path().to_string_lossy().to_string();
+                        let tx_decode = tx.clone();
+                        let req_id = request_id.clone();
+                        let decoder = MyVideoDecoder;
+
+                        let decode_result = tokio::task::spawn_blocking(move || {
+                            decoder.decode_video(req_id.clone(), &video_path, tx_decode)
+                        })
+                        .await;
+
+                        match decode_result {
+                            Ok(Ok(frames_decoded)) => {
                                 let _ = tx
                                     .send(Ok(DecodeResponse {
-                                        msg: Some(proto::videodecode::decode_response::Msg::Error(
-                                            DecodeError {
-                                                request_id: request_id.clone(),
-                                                code: DecodeErrorCode::Internal.into(),
-                                                message: format!("Failed to write chunk: {}", e),
-                                            },
-                                        )),
+                                        msg: Some(
+                                            proto::videodecode::decode_response::Msg::Done(
+                                                DecodeDone {
+                                                    request_id: request_id.clone(),
+                                                    frames_decoded,
+                                                },
+                                            ),
+                                        ),
                                     }))
                                     .await;
-                                return;
                             }
-
-                            bytes_received += chunk.data.len() as u64;
-
-                            let _ = tx
-                                .send(Ok(DecodeResponse {
-                                    msg: Some(proto::videodecode::decode_response::Msg::Progress(
-                                        Progress {
-                                            request_id: request_id.clone(),
-                                            bytes_received,
-                                            frames_decoded: 0,
-                                        },
-                                    )),
-                                }))
-                                .await;
-
-                            if chunk.eof {
-                                if let Err(e) = file.flush() {
-                                    let _ = tx
-                                        .send(Ok(DecodeResponse {
-                                            msg: Some(
-                                                proto::videodecode::decode_response::Msg::Error(
-                                                    DecodeError {
-                                                        request_id: request_id.clone(),
-                                                        code: DecodeErrorCode::Internal.into(),
-                                                        message: format!(
-                                                            "Failed to flush temp file: {}",
-                                                            e
-                                                        ),
-                                                    },
-                                                ),
-                                            ),
-                                        }))
-                                        .await;
-                                    return;
-                                }
-
-                                let video_path = file.path().to_string_lossy().to_string();
-                                let tx_decode = tx.clone();
-                                let req_id = request_id.clone();
-
-                                let decoder = MyVideoDecoder;
-
-                                let decode_result = tokio::task::spawn_blocking(move || {
-                                    decoder.decode_video(req_id.clone(), &video_path, tx_decode)
-                                })
-                                .await;
-
-                                match decode_result {
-                                    Ok(Ok(frames_decoded)) => {
-                                        let _ = tx
-                                            .send(Ok(DecodeResponse {
-                                                msg: Some(
-                                                    proto::videodecode::decode_response::Msg::Done(
-                                                        DecodeDone {
-                                                            request_id: request_id.clone(),
-                                                            frames_decoded,
-                                                        },
-                                                    ),
-                                                ),
-                                            }))
-                                            .await;
-                                    }
-
-                                    Ok(Err(e)) => {
-                                        let _ = tx
-                                            .send(Ok(DecodeResponse {
-                                                msg: Some(
-                                                    proto::videodecode::decode_response::Msg::Error(
-                                                        DecodeError {
-                                                            request_id: request_id.clone(),
-                                                            code: DecodeErrorCode::DecodeError
-                                                                .into(),
-                                                            message: e,
-                                                        },
-                                                    ),
-                                                ),
-                                            }))
-                                            .await;
-                                    }
-
-                                    Err(e) => {
-                                        let _ = tx
-                                            .send(Ok(DecodeResponse {
-                                                msg: Some(
-                                                    proto::videodecode::decode_response::Msg::Error(
-                                                        DecodeError {
-                                                            request_id: request_id.clone(),
-                                                            code: DecodeErrorCode::Internal.into(),
-                                                            message: format!(
-                                                                "Task panicked: {}",
-                                                                e
-                                                            ),
-                                                        },
-                                                    ),
-                                                ),
-                                            }))
-                                            .await;
-                                    }
-                                }
-                                return;
+                            Ok(Err(e)) => {
+                                send_error(&tx, &request_id, DecodeErrorCode::DecodeError, e).await;
+                            }
+                            Err(e) => {
+                                send_error(&tx, &request_id, DecodeErrorCode::Internal, format!("Task panicked: {}", e)).await;
                             }
                         }
+                        return;
                     }
 
                     None => {}

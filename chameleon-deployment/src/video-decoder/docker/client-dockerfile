@@ -22,7 +22,8 @@ rm -rf /var/lib/apt/lists/*
 EOF
 
 COPY --from=builder /usr/src/video-decoder/target/release/client /usr/local/bin/
+COPY docker/data/test.webm /data/test.webm
 
 RUN mkdir /output
 
-CMD ["client", "${VIDEO_PATH}", "/output"]
+CMD ["client", "/data/test.webm", "/output"]
