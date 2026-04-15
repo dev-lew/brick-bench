@@ -2,13 +2,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: wan2.1-comfy-ui
+  name: wan-comfy-ui
   labels:
-    app: wan2.1-comfy-ui
+    app: wan-comfy-ui
   namespace: brick-bench
 spec:
   selector:
-    app: wan2.1-comfy-ui
+    app: wan-comfy-ui
   ports:
     - port: 80
       targetPort: 8000
@@ -16,11 +16,10 @@ spec:
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: wan2.1-vae-pv
-  namespace: brick-bench
+  name: wan-vae-pv
 spec:
   capacity:
-    storage: 7Gi
+    storage: 256Mi
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
@@ -38,8 +37,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: wan2.1-clip-pv
-  namespace: brick-bench
+  name: wan-clip-pv
 spec:
   capacity:
     storage: 6.8Gi
@@ -60,11 +58,31 @@ spec:
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: wan2.1-diffusion-models-pv
-  namespace: brick-bench
+  name: wan-clip-vision-pv
 spec:
   capacity:
-    storage: 6.8Gi
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  local:
+    path: /home/cc/models/clip_vision
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - worker
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: wan-diffusion-models-pv
+spec:
+  capacity:
+    storage: 36Gi
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
@@ -82,7 +100,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: wan2.1-vae-pvc
+  name: wan-clip-pvc
   namespace: brick-bench
 spec:
   accessModes:
@@ -90,52 +108,66 @@ spec:
   resources:
     requests:
       storage: 6.8Gi
-  volumeName: wan2.1-vae-pv
+  volumeName: wan-clip-pv
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: wan2.1-clip-pvc
+  name: wan-vae-pvc
   namespace: brick-bench
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 11.2Gi
-  volumeName: wan2.1-clip-pv
+      storage: 256Mi
+  volumeName: wan-vae-pv
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: wan2.1-diffusion-model-pvc
+  name: wan-diffusion-models-pvc
   namespace: brick-bench
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 11.2Gi
-  volumeName: wan2.1-diffusion-model-pv
+      storage: 36Gi
+  volumeName: wan-diffusion-models-pv
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wan-clip-vision-pvc
+  namespace: brick-bench
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  volumeName: wan-clip-vision-pv
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: wan2.1-comfy-ui
+  name: wan-comfy-ui
   namespace: brick-bench
   labels:
-    app: wan2.1-comfy-ui
+    app: wan-comfy-ui
 spec:
   selector:
     matchLabels:
-      app: wan2.1-comfy-ui
+      app: wan-comfy-ui
   template:
     metadata:
       labels:
-        app: wan2.1-comfy-ui
+        app: wan-comfy-ui
     spec:
+      runtimeClassName: nvidia
       containers:
-        - name: image-gen
+        - name: video-gen
           image: devlew/comfy-ui:v1.0.0
           imagePullPolicy: Always
           ports:
@@ -143,14 +175,22 @@ spec:
           volumeMounts:
             - mountPath: /stable-diffusion/models/clip
               name: clip
+            - mountPath: /stable-diffusion/models/clip_vision
+              name: clip-vision
             - mountPath: /stable-diffusion/models/diffusion_models
-              name: diffusion_models
+              name: diffusion-models
             - mountPath: /stable-diffusion/models/vae
               name: vae
       volumes:
-        - name: vae
-          persistentVolumeClaim:
-            claimName: wan2.1-vae-pvc
         - name: clip
           persistentVolumeClaim:
-            claimName: wan2.1-clip-pvc
+            claimName: wan-clip-pvc
+        - name: clip-vision
+          persistentVolumeClaim:
+            claimName: wan-clip-vision-pvc
+        - name: diffusion-models
+          persistentVolumeClaim:
+            claimName: wan-diffusion-models-pvc
+        - name: vae
+          persistentVolumeClaim:
+            claimName: wan-vae-pvc

@@ -67,14 +67,14 @@
 - name: Install Stable Diffusion and WAN2.1 prerequisites
   hosts: worker
   vars:
-    huggingface_cli_executable: "{{ home }}/.virtualenvs/huggingface-cli/bin/huggingface-cli"
+    huggingface_cli_executable: "{{ home }}/.virtualenvs/hf/bin/hf"
   tasks:
     # All subsequent invocations of huggingface-cli will use this virtualenv.
     - name: Install huggingface-cli
       ansible.builtin.pip:
-        name: "huggingface_hub[cli]"
+        name: "huggingface_hub"
         state: present
-        virtualenv: "{{ home }}/.virtualenvs/huggingface-cli"
+        virtualenv: "{{ home }}/.virtualenvs/hf"
         virtualenv_command: python3 -m venv
       when: token is defined
 
@@ -92,7 +92,7 @@
       when: token is defined
 
     - name: Login with token
-      ansible.builtin.command: "{{ huggingface_cli_executable }} login --token {{ token }}"
+      ansible.builtin.command: "{{ huggingface_cli_executable }} auth login --token {{ token }}"
       when: token is defined
 
     - name: Download Stable Diffusion 3.5 model
@@ -104,20 +104,27 @@
     - name: Download Wan2.1 text-to-video and image-to-video models
       ansible.builtin.command: >
         {{ huggingface_cli_executable }} download Comfy-Org/Wan_2.1_ComfyUI_repackaged
-        splitfiles/diffusion_models/{{ item }}
+        split_files/diffusion_models/{{ item }}
         --local-dir {{ home }}/models/diffusion_models
       loop:
         - wan2.1_i2v_480p_14B_fp16.safetensors
         - wan2.1_t2v_1.3B_fp16.safetensors
       when: token is defined
 
+    - name: Download Wan2.1 clip vision
+      ansible.builtin.command: >
+        {{ huggingface_cli_executable }} download Comfy-Org/Wan_2.1_ComfyUI_repackaged
+        split_files/clip_vision/clip_vision_h.safetensors
+        --local-dir {{ home }}/models/clip_vision
+      when: token is defined
+
     - name: Download Wan2.1 VAE
       ansible.builtin.command: >
         {{ huggingface_cli_executable }} download Comfy-Org/Wan_2.1_ComfyUI_repackaged
-        splitfiles/vae/wan_2.1_vae.safetensors
+        split_files/vae/wan_2.1_vae.safetensors
         --local-dir {{ home }}/models/vae
 
-    - name: Download text encoders
+    - name: Download Stable Diffusion text encoders
       ansible.builtin.command: >
         {{ huggingface_cli_executable }} download stabilityai/stable-diffusion-3.5-large text_encoders/{{ item }}
         --local-dir {{ home }}/models/clip
@@ -125,7 +132,13 @@
         - clip_g.safetensors
         - clip_l.safetensors
         - t5xxl_fp16.safetensors
-        - umt5_xxl_fp8_e4m3fn_scaled.safetensors
+      when: token is defined
+
+    - name: Download Wan2.1 text encoder
+      ansible.builtin.command: >
+        {{ huggingface_cli_executable }} download Comfy-Org/Wan_2.1_ComfyUI_repackaged
+        split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors
+        --local-dir {{ home }}/models/text_encoders
       when: token is defined
   tags: prereq
 
