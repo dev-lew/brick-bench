@@ -1,5 +1,5 @@
-import threading
 import random
+import threading
 from dataclasses import asdict, dataclass, field
 from typing import Optional
 
@@ -182,17 +182,229 @@ class TripleCLIPLoader(ComfyUINode):
         )
 
 
-class ComfyUIRequest:
+@dataclass
+class SaveAnimatedWEBPInput:
+    filename_prefix: str = "ComfyUI"
+    fps: int = 16
+    lossless: bool = False
+    quality: int = 50
+    method: str = "default"
+    images: list[str | int] = field(default_factory=lambda: ["8", 0])
+
+
+class SaveAnimatedWEBP(ComfyUINode):
+    node_id = "28"
+
+    def __init__(self, inputs: SaveAnimatedWEBPInput = SaveAnimatedWEBPInput()) -> None:
+        super().__init__(
+            self.node_id,
+            asdict(inputs),
+            "SaveAnimatedWEBP",
+            {"title": "SaveAnimatedWEBP"},
+        )
+
+
+@dataclass
+class UNETLoaderInput:
+    unet_name: str = "split_files/diffusion_models/wan2.1_i2v_480p_14B_fp16.safetensors"
+    weight_dtype: str = "default"
+
+
+class UNETLoader(ComfyUINode):
+    node_id = "37"
+
+    def __init__(self, inputs: UNETLoaderInput = UNETLoaderInput()) -> None:
+        super().__init__(
+            self.node_id,
+            asdict(inputs),
+            "UNETLoader",
+            {"title": "Load Diffusion Model"},
+        )
+
+
+@dataclass
+class CLIPLoaderInput:
+    clip_name: str = "umt5_xxl_fp8_e4m3fn_scaled.safetensors"
+    type: str = "wan"
+    device: str = "default"
+
+
+class CLIPLoader(ComfyUINode):
+    node_id = "38"
+
+    def __init__(self, inputs: CLIPLoaderInput = CLIPLoaderInput()) -> None:
+        super().__init__(
+            self.node_id, asdict(inputs), "CLIPLoader", {"title": "Load CLIP"}
+        )
+
+
+@dataclass
+class VAELoaderInput:
+    vae_name: str = "split_files/vae/wan_2.1_vae.safetensors"
+
+
+class VAELoader(ComfyUINode):
+    node_id = "39"
+
+    def __init__(self, inputs: VAELoaderInput = VAELoaderInput()) -> None:
+        super().__init__(
+            self.node_id, asdict(inputs), "VAELoader", {"title": "Load VAE"}
+        )
+
+
+@dataclass
+class CLIPVisionLoaderInput:
+    clip_name: str = "split_files/clip_vision/clip_vision_h.safetensors"
+
+
+class CLIPVisionLoader(ComfyUINode):
+    node_id = "49"
+
+    def __init__(self, inputs: CLIPVisionLoaderInput = CLIPVisionLoaderInput()) -> None:
+        super().__init__(
+            self.node_id,
+            asdict(inputs),
+            "CLIPVisionLoader",
+            {"title": "Load CLIP Vision"},
+        )
+
+
+@dataclass
+class WanImageToVideoInput:
+    width: int = 256
+    height: int = 256
+    length: int = 61
+    batch_size: int = 1
+    positive: list[str | int] = field(default_factory=lambda: ["6", 0])
+    negative: list[str | int] = field(default_factory=lambda: ["7", 0])
+    vae: list[str | int] = field(default_factory=lambda: ["39", 0])
+    clip_vision_output: list[str | int] = field(default_factory=lambda: ["51", 0])
+    start_image: list[str | int] = field(default_factory=lambda: ["52", 0])
+
+
+class WanImageToVideo(ComfyUINode):
+    node_id = "50"
+
+    def __init__(self, inputs: WanImageToVideoInput = WanImageToVideoInput()) -> None:
+        super().__init__(
+            self.node_id,
+            asdict(inputs),
+            "WanImageToVideo",
+            {"title": "WanImageToVideo"},
+        )
+
+
+@dataclass
+class CLIPVisionEncodeInput:
+    crop: str = "none"
+    clip_vision: list[str | int] = field(default_factory=lambda: ["49", 0])
+    image: list[str | int] = field(default_factory=lambda: ["52", 0])
+
+
+class CLIPVisionEncode(ComfyUINode):
+    node_id = "51"
+
+    def __init__(self, inputs: CLIPVisionEncodeInput = CLIPVisionEncodeInput()) -> None:
+        super().__init__(
+            self.node_id,
+            asdict(inputs),
+            "CLIPVisionEncode",
+            {"title": "CLIP Vision Encode"},
+        )
+
+
+@dataclass
+class LoadImageInput:
+    image: str = "data/default.png"
+
+
+class LoadImage(ComfyUINode):
+    node_id = "52"
+
+    def __init__(self, inputs: LoadImageInput = LoadImageInput()) -> None:
+        super().__init__(
+            self.node_id, asdict(inputs), "LoadImage", {"title": "Load Image"}
+        )
+
+
+@dataclass
+class ModelSamplingSD3Input:
+    shift: int = 8
+    model: list[str | int] = field(default_factory=lambda: ["37", 0])
+
+
+class ModelSamplingSD3(ComfyUINode):
+    node_id = "54"
+
+    def __init__(self, inputs: ModelSamplingSD3Input = ModelSamplingSD3Input()) -> None:
+        super().__init__(
+            self.node_id,
+            asdict(inputs),
+            "ModelSamplingSD3",
+            {"title": "ModelSamplingSD3"},
+        )
+
+
+class VideoRequest:
+    def __init__(
+        self,
+        clip_loader: CLIPLoader = CLIPLoader(),
+        clip_vision_encode: CLIPVisionEncode = CLIPVisionEncode(),
+        clip_vision_loader: CLIPVisionLoader = CLIPVisionLoader(),
+        ksampler: KSampler = KSampler(),
+        load_image: LoadImage = LoadImage(),
+        model_sampling_sd3: ModelSamplingSD3 = ModelSamplingSD3(),
+        negative_prompt: CLIPTextEncodeNegative = CLIPTextEncodeNegative(),
+        positive_prompt: CLIPTextEncodePositive = CLIPTextEncodePositive(),
+        save_animated_webp: SaveAnimatedWEBP = SaveAnimatedWEBP(),
+        unet_loader: UNETLoader = UNETLoader(),
+        vae_decode: VAEDecode = VAEDecode(),
+        vae_loader: VAELoader = VAELoader(),
+        wan_image_to_video: WanImageToVideo = WanImageToVideo(),
+    ) -> None:
+        self.ksampler = ksampler
+        self.positive_prompt = positive_prompt
+        self.negative_prompt = negative_prompt
+        self.vae_decode = vae_decode
+        self.save_animated_webp = save_animated_webp
+        self.unet_loader = unet_loader
+        self.clip_loader = clip_loader
+        self.vae_loader = vae_loader
+        self.clip_vision_loader = clip_vision_loader
+        self.wan_image_to_video = wan_image_to_video
+        self.clip_vision_encode = clip_vision_encode
+        self.load_image = load_image
+        self.model_sampling_sd3 = model_sampling_sd3
+
+    def generate_data(self) -> dict:
+        return {
+            self.ksampler.node_id: self.ksampler.to_json(),
+            self.positive_prompt.node_id: self.positive_prompt.to_json(),
+            self.negative_prompt.node_id: self.negative_prompt.to_json(),
+            self.vae_decode.node_id: self.vae_decode.to_json(),
+            self.save_animated_webp.node_id: self.save_animated_webp.to_json(),
+            self.unet_loader.node_id: self.unet_loader.to_json(),
+            self.clip_loader.node_id: self.clip_loader.to_json(),
+            self.vae_loader.node_id: self.vae_loader.to_json(),
+            self.clip_vision_loader.node_id: self.clip_vision_loader.to_json(),
+            self.wan_image_to_video.node_id: self.wan_image_to_video.to_json(),
+            self.clip_vision_encode.node_id: self.clip_vision_encode.to_json(),
+            self.load_image.node_id: self.load_image.to_json(),
+            self.model_sampling_sd3.node_id: self.model_sampling_sd3.to_json(),
+        }
+
+
+class ImageRequest:
     def __init__(
         self,
         ksampler: KSampler = KSampler(),
-        load_checkpoint: LoadCheckpoint = LoadCheckpoint(),
-        vae_decode: VAEDecode = VAEDecode(),
-        save_image: SaveImage = SaveImage(),
-        positive_prompt: CLIPTextEncodePositive = CLIPTextEncodePositive(),
-        negative_prompt: CLIPTextEncodeNegative = CLIPTextEncodeNegative(),
         latent_image: EmptySD3LatentImage = EmptySD3LatentImage(),
+        load_checkpoint: LoadCheckpoint = LoadCheckpoint(),
+        negative_prompt: CLIPTextEncodeNegative = CLIPTextEncodeNegative(),
+        positive_prompt: CLIPTextEncodePositive = CLIPTextEncodePositive(),
+        save_image: SaveImage = SaveImage(),
         triple_clip_loader: TripleCLIPLoader = TripleCLIPLoader(),
+        vae_decode: VAEDecode = VAEDecode(),
     ) -> None:
         self.ksampler = ksampler
         self.load_checkpoint = load_checkpoint

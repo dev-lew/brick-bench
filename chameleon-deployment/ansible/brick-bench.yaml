@@ -138,7 +138,19 @@
       ansible.builtin.command: >
         {{ huggingface_cli_executable }} download Comfy-Org/Wan_2.1_ComfyUI_repackaged
         split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors
-        --local-dir {{ home }}/models/text_encoders
+        --local-dir {{ home }}/models/clip/text_encoders
+      when: token is defined
+
+    - name: Move Wan2.1 text encoder to correct location
+      ansible.builtin.command: >
+        mv {{ home }}/models/clip/text_encoders/split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors
+        {{ home }}/models/clip/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors
+      when: token is defined
+
+    - name: Remove Wan2.1 text encoder leftover directory
+      ansible.builtin.file:
+        path: "{{ home }}/models/clip/text_encoders/split_files"
+        state: absent
       when: token is defined
   tags: prereq
 

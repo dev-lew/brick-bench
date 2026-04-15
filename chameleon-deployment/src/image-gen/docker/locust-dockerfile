@@ -17,7 +17,7 @@ FROM python:3.12.4-slim@sha256:f11725aba18c19664a408902103365eaf8013823ffc56270f
 
 FROM base AS builder
 
-COPY requirements.txt .
+COPY ../requirements.txt .
 
 RUN pip install --prefix="/install" -r requirements.txt
 
@@ -29,7 +29,7 @@ WORKDIR /loadgen
 
 COPY --from=builder /install /usr/local
 
-COPY locustfile.py .
+COPY ../locustfile.py .
 
 ENTRYPOINT ["locust", "--headless", "--csv", "${CSV_PATH}","--run-time", "${RUN_TIME}",
            "--spawn-rate", "${SPAWN_RATE}", "--users", "${NUM_USERS}",

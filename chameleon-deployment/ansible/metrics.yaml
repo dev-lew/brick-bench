@@ -1,0 +1,22 @@
+---
+- name: Install metrics
+  hosts: controller
+  vars:
+    kubernetes_venv_interpreter: "{{ home }}/.virtualenvs/kubernetes/bin/python3"
+  tasks:
+    - name: Apply the metrics server configuration
+      kubernetes.core.k8s:
+        definition: "{{ lookup('file', 'kubernetes-manifests/metrics/metrics-server.yaml') | from_yaml_all }}"
+        state: present
+      vars:
+        ansible_python_interpreter: "{{ kubernetes_venv_interpreter }}"
+      tags: metrics-server
+
+    - name: Apply cadvisor server configuration
+      kubernetes.core.k8s:
+        definition: "{{ lookup('file', 'kubernetes-manifests/metrics/cadvisor.yaml') | from_yaml_all }}"
+        state: present
+        force: true
+      vars:
+        ansible_python_interpreter: "{{ kubernetes_venv_interpreter }}"
+      tags: cadvisor
