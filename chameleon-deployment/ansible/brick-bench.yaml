@@ -29,10 +29,10 @@
     - name: Add helm repository
       ansible.builtin.deb822_repository:
         name: helm
-        signed_by: https://baltocdn.com/helm/signing.asc
-        suites: all
+        signed_by: https://packages.buildkite.com/helm-linux/helm-debian/gpgkey
+        suites: any
         components: main
-        uris: https://baltocdn.com/helm/stable/debian/
+        uris: https://packages.buildkite.com/helm-linux/helm-debian/any/
         state: present
         enabled: true
       become: true
@@ -64,7 +64,7 @@
             enabled: false
   tags: gpu
 
-- name: Install Stable Diffusion prerequisites
+- name: Install Stable Diffusion and WAN2.1 prerequisites
   hosts: worker
   vars:
     huggingface_cli_executable: "{{ home }}/.virtualenvs/huggingface-cli/bin/huggingface-cli"
@@ -87,6 +87,8 @@
       loop:
         - checkpoints
         - clip
+        - diffusion_models
+        - vae
       when: token is defined
 
     - name: Login with token
@@ -99,6 +101,22 @@
         --local-dir {{ home }}/models/checkpoints
       when: token is defined
 
+    - name: Download Wan2.1 text-to-video and image-to-video models
+      ansible.builtin.command: >
+        {{ huggingface_cli_executable }} download Comfy-Org/Wan_2.1_ComfyUI_repackaged
+        splitfiles/diffusion_models/{{ item }}
+        --local-dir {{ home }}/models/diffusion_models
+      loop:
+        - wan2.1_i2v_480p_14B_fp16.safetensors
+        - wan2.1_t2v_1.3B_fp16.safetensors
+      when: token is defined
+
+    - name: Download Wan2.1 VAE
+      ansible.builtin.command: >
+        {{ huggingface_cli_executable }} download Comfy-Org/Wan_2.1_ComfyUI_repackaged
+        splitfiles/vae/wan_2.1_vae.safetensors
+        --local-dir {{ home }}/models/vae
+
     - name: Download text encoders
       ansible.builtin.command: >
         {{ huggingface_cli_executable }} download stabilityai/stable-diffusion-3.5-large text_encoders/{{ item }}
@@ -107,6 +125,7 @@
         - clip_g.safetensors
         - clip_l.safetensors
         - t5xxl_fp16.safetensors
+        - umt5_xxl_fp8_e4m3fn_scaled.safetensors
       when: token is defined
   tags: prereq
 
@@ -130,6 +149,16 @@
         state: present
         force: true
       when: image_gen_manifest is defined
+      vars:
+        ansible_python_interpreter: "{{ kubernetes_venv_interpreter }}"
+
+    - name: Apply video gen manifests
+      kubernetes.core.k8s:
+        definition: "{{ lookup('file', 'kubernetes-manifests/{{ video_gen_manifest }}') | from_yaml_all }}"
+        namespace: brick-bench
+        state: present
+        force: true
+      when: video_gen_manifest is defined
       vars:
         ansible_python_interpreter: "{{ kubernetes_venv_interpreter }}"
   tags: deploy
