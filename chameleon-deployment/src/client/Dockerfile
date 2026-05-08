@@ -37,7 +37,7 @@ WORKDIR /loadgen
 
 COPY --from=builder /install /usr/local
 
-COPY ../locustfile.py ../comfy_api.py .
+COPY locustfile.py comfy_api.py .
 
 ENTRYPOINT ["locust", "--headless", "--csv", "${CSV_PATH}","--run-time", "${RUN_TIME}", \
            "--spawn-rate", "${SPAWN_RATE}", "--users", "${NUM_USERS}",                  \
