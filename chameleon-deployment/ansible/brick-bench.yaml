@@ -186,4 +186,13 @@
       when: video_gen_manifest is defined
       vars:
         ansible_python_interpreter: "{{ kubernetes_venv_interpreter }}"
+
+    - name: Apply load generator manifests
+      kubernetes.core.k8s:
+        definition: "{{ lookup('file', 'kubernetes-manifests/load-generator.yaml') | from_yaml_all }}"
+        namespace: brick-bench
+        state: present
+        force: true
+      vars:
+        ansible_python_interpreter: "{{ kubernetes_venv_interpreter }}"
   tags: deploy
