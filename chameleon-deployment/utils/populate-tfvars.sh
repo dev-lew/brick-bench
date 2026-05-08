@@ -11,7 +11,7 @@ EOF
 
 use_gpu=false
 
-while getopts g: opt; do
+while getopts g opt; do
     case "${opt}" in
     g)
         use_gpu=true
